@@ -17,12 +17,12 @@ const blogSchema = new mongoose.Schema(
     type: {
       type: String,
       enum: [
-        'news',
-        'tips',
-        'technology',
-        'unique_features',
-        'certifications',
-        'material_crafting',
+        "news",
+        "tips",
+        "technology",
+        "unique_features",
+        "certifications",
+        "material_crafting",
       ],
     },
     publishDate: {

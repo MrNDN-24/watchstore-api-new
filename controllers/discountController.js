@@ -5,17 +5,20 @@ const User = require("../models/User");
 const getDiscounts = async (req, res) => {
   try {
     const currentDate = new Date();
-      // 👉 Log kiểm tra xem req.user có tồn tại không
-      console.log("req.user:", req.user);
+    // 👉 Log kiểm tra xem req.user có tồn tại không
+    console.log("req.user:", req.user);
 
-      // 👉 Nếu req.user không tồn tại thì trả về lỗi
-      if (!req.user || !req.user._id) {
-        return res.status(401).json({ message: "Không xác định được người dùng." });
-      }
+    // 👉 Nếu req.user không tồn tại thì trả về lỗi
+    if (!req.user || !req.user._id) {
+      return res
+        .status(401)
+        .json({ message: "Không xác định được người dùng." });
+    }
 
     // 👉 Lấy user hiện tại từ middleware auth (giả định req.user._id có sẵn)
     const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng." });
+    if (!user)
+      return res.status(404).json({ message: "Không tìm thấy người dùng." });
 
     const userRank = user.rank || "bronze"; // Mặc định nếu chưa có rank
 
@@ -77,9 +80,6 @@ const getDiscounts = async (req, res) => {
 //   }
 // };
 
-
-
-
 // 2. Kiểm tra mã giảm giá có hợp lệ với người dùng không
 const validateDiscountForUser = async (req, res) => {
   try {
@@ -123,7 +123,87 @@ const validateDiscountForUser = async (req, res) => {
   }
 };
 
+const rankPriority = {
+  bronze: 1,
+  silver: 2,
+  gold: 3,
+  platinum: 4,
+  diamond: 5,
+};
+
+const getSuitableDiscount = async (req, res) => {
+  try {
+    const currentDate = new Date();
+
+    // 👉 Log kiểm tra xem req.user có tồn tại không
+    console.log("req.user:", req.user);
+
+    if (!req.user || !req.user._id) {
+      return res
+        .status(401)
+        .json({ message: "Không xác định được người dùng." });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user)
+      return res.status(404).json({ message: "Không tìm thấy người dùng." });
+
+    const userRank = user.rank || "bronze";
+    const userRankPriority = rankPriority[userRank];
+
+    // Lấy danh sách rank phù hợp với userRank (rankPriority <= userRankPriority)
+    const allowedRanks = Object.entries(rankPriority)
+      .filter(([rank, priority]) => priority <= userRankPriority)
+      .map(([rank]) => rank);
+
+    // Lấy voucher có applicableRanks trong allowedRanks
+    const discounts = await Discount.find({
+      isActive: true,
+      isDelete: false,
+      applicableRanks: { $in: allowedRanks },
+      startDate: { $lte: currentDate },
+      expirationDate: { $gt: currentDate },
+      usedBy: { $ne: user._id },
+    });
+
+    if (discounts.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy mã giảm giá phù hợp." });
+    }
+
+    // Sắp xếp ưu tiên theo rank giảm dần (cao nhất trong allowedRanks) và discountValue giảm dần
+    discounts.sort((a, b) => {
+      // Lấy rankPriority cho voucher (giả sử mỗi voucher có 1 rank trong applicableRanks)
+      const aRankPriority = Math.max(
+        ...a.applicableRanks.map((r) => rankPriority[r] || 0)
+      );
+      const bRankPriority = Math.max(
+        ...b.applicableRanks.map((r) => rankPriority[r] || 0)
+      );
+
+      const rankDiff = bRankPriority - aRankPriority;
+      if (rankDiff !== 0) return rankDiff;
+
+      return b.discountValue - a.discountValue;
+    });
+
+    const bestDiscount = discounts[0];
+
+    res.status(200).json({
+      message: "Lấy mã giảm giá phù hợp thành công.",
+      data: {
+        discount: bestDiscount,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Lỗi khi lấy mã giảm giá." });
+  }
+};
+
 module.exports = {
   getDiscounts,
   validateDiscountForUser,
+  getSuitableDiscount,
 };

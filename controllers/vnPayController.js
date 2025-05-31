@@ -7,6 +7,8 @@ const {
 } = require("vnpay");
 
 const crypto = require("crypto");
+const moment = require("moment");
+const request = require("request");
 const Order = require("../models/Order"); // thay đường dẫn nếu khác
 const Payment = require("../models/Payment"); // thay đường dẫn nếu khác
 
@@ -149,8 +151,127 @@ const vnpayReturn = async (req, res) => {
   }
 };
 
+const vnpayRefund = async (req, res) => {
+  try {
+    const { orderId, transDate, amount, transType, user } = req.body;
+    console.log("Refund Request:", req.body);
+    if (!orderId || !transDate || !amount || !transType || !user) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin cần thiết để hoàn tiền.",
+      });
+    }
+    // Thiết lập múi giờ cho Việt Nam
+    process.env.TZ = "Asia/Ho_Chi_Minh";
+    const date = new Date();
+
+    const config = require("config");
+
+    const vnp_TmnCode = config.get("vnp_TmnCode");
+    const secretKey = config.get("vnp_HashSecret");
+    const vnp_Api = config.get("vnp_Api");
+
+    const vnp_TxnRef = orderId;
+    const vnp_TransactionDate = transDate;
+    const vnp_Amount = amount;
+    const vnp_TransactionType = transType; // 02: Hoàn toàn, 03: Một phần
+    const vnp_CreateBy = user;
+
+    const vnp_RequestId = moment(date).format("HHmmss");
+    const vnp_Version = "2.1.0";
+    const vnp_Command = "refund";
+    const vnp_OrderInfo = "Hoàn tiền giao dịch mã: " + vnp_TxnRef;
+    const vnp_IpAddr =
+      req.headers["x-forwarded-for"] ||
+      req.connection.remoteAddress ||
+      req.socket?.remoteAddress ||
+      req.connection?.socket?.remoteAddress;
+
+    const vnp_CreateDate = moment(date).format("YYYYMMDDHHmmss");
+    const vnp_TransactionNo = "0";
+
+    const data =
+      vnp_RequestId +
+      "|" +
+      vnp_Version +
+      "|" +
+      vnp_Command +
+      "|" +
+      vnp_TmnCode +
+      "|" +
+      vnp_TransactionType +
+      "|" +
+      vnp_TxnRef +
+      "|" +
+      vnp_Amount +
+      "|" +
+      vnp_TransactionNo +
+      "|" +
+      vnp_TransactionDate +
+      "|" +
+      vnp_CreateBy +
+      "|" +
+      vnp_CreateDate +
+      "|" +
+      vnp_IpAddr +
+      "|" +
+      vnp_OrderInfo;
+
+    const hmac = crypto.createHmac("sha512", secretKey);
+    const vnp_SecureHash = hmac
+      .update(Buffer.from(data, "utf-8"))
+      .digest("hex");
+
+    const dataObj = {
+      vnp_RequestId,
+      vnp_Version,
+      vnp_Command,
+      vnp_TmnCode,
+      vnp_TransactionType,
+      vnp_TxnRef,
+      vnp_Amount,
+      vnp_TransactionNo,
+      vnp_CreateBy,
+      vnp_OrderInfo,
+      vnp_TransactionDate,
+      vnp_CreateDate,
+      vnp_IpAddr,
+      vnp_SecureHash,
+    };
+
+    request(
+      {
+        url: vnp_Api,
+        method: "POST",
+        json: true,
+        body: dataObj,
+      },
+      function (error, response, body) {
+        if (error) {
+          console.error("Refund Error:", error);
+          return res
+            .status(500)
+            .json({ success: false, message: "Lỗi khi hoàn tiền." });
+        }
+        return res.status(200).json({
+          success: true,
+          message: "Gửi yêu cầu hoàn tiền thành công.",
+          data: body,
+        });
+      }
+    );
+  } catch (error) {
+    console.error("Refund Exception:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi máy chủ trong quá trình hoàn tiền.",
+    });
+  }
+};
+
 module.exports = {
   createQRCode,
   checkPayment,
   vnpayReturn,
+  vnpayRefund,
 };
