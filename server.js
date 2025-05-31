@@ -7,6 +7,7 @@ const dotenv = require("dotenv");
 // socket.io
 const socketIo = require("socket.io");
 const http = require("http");
+const setupSocket = require("./socketHandlers/Socket.js");
 
 //Admin
 const authRoutesAdmin = require("./routes/authRoutes");
@@ -22,8 +23,9 @@ const orderRoutesAdmin = require("./routes/orderRoutesAdmin");
 const paymentRoutesAdmin = require("./routes/paymentRoutesAdmin");
 const statisticRoutesAdmin = require("./routes/statisticRoutesAdmin");
 const notifyRoutesAdmin = require("./routes/notifyRoutesAdmin");
-const messageRoutesAdmin = require("./routes/messageRoutesAdmin");
-const blogRoutesAdmin= require("./routes/blogRoutesAdmin");
+const blogRoutesAdmin = require("./routes/blogRoutesAdmin");
+const activityRoutesAdmin= require("./routes/activityRoutesAdmin");
+
 //Client
 const userRoutes = require("./routes/userRoutes");
 const homeRoutes = require("./routes/homeRoutes");
@@ -38,6 +40,15 @@ const styleRoutes = require("./routes/styleRoutes");
 const reviewRoutes = require("./routes/reviewRoutes");
 const brandRoutes = require("./routes/brandRoutes");
 const notifyRoutes = require("./routes/notifyRoutes");
+const blogRoutes = require("./routes/blogRoutes");
+const commentRoutes = require("./routes/commentRoutes");
+
+
+//Message
+const conversationRoutes = require("./routes/conversationRoutes");
+const messageRoutes = require("./routes/messageRoutes");
+const supportQueueRoutes = require("./routes/supportQueueRoutes");
+
 dotenv.config();
 
 const app = express();
@@ -62,28 +73,7 @@ app.set("io", io);
 // Socket logic
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
-
-  socket.on("join", (userId) => {
-    socket.join(userId);
-    console.log(`User ${userId} joined room`);
-  });
-
-  // Nhận tin nhắn từ client và phát cho người nhận
-  socket.on("sendMessage", ({ senderId, receiverId, content }) => {
-    // Gửi tới phòng người nhận
-    io.to(receiverId).emit("receiveMessage", {
-      senderId,
-      content,
-      timestamp: new Date(),
-    });
-
-    console.log(`Message from ${senderId} to ${receiverId}: ${content}`);
-  });
-
-  
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-  });
+  setupSocket(socket, io);
 });
 
 // Middleware
@@ -110,8 +100,8 @@ app.use("/api/orderAPI", orderRoutesAdmin);
 app.use("/api/payments", paymentRoutesAdmin);
 app.use("/api/statistics", statisticRoutesAdmin);
 app.use("/api/notifies", notifyRoutesAdmin);
-app.use("/api/messages", messageRoutesAdmin);
-app.use("/api/blogs",blogRoutesAdmin);
+app.use("/api/blogs", blogRoutesAdmin);
+app.use("/api/activity", activityRoutesAdmin);
 
 // Định nghĩa các route user
 app.use("/api/user", userRoutes);
@@ -127,6 +117,14 @@ app.use("/api/style", styleRoutes);
 app.use("/api/review", reviewRoutes);
 app.use("/api/brand", brandRoutes);
 app.use("/api/notifications", notifyRoutes);
+app.use("/api/blog", blogRoutes);
+app.use("/api/comment", commentRoutes);
+
+
+//Route message
+app.use("/api/conversations", conversationRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/support-queue", supportQueueRoutes);
 
 // Khởi động server
 const PORT = process.env.PORT || 5000;

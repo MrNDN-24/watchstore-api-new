@@ -299,6 +299,30 @@ const getProductChatBot = async (req, res) => {
   }
 };
 
+const getTopSellingProduct = async (req, res) => {
+  try {
+    const topProduct = await Product.find({ isActive: true, isDelete: false })
+      .sort({ sold: -1 })
+      .limit(1)
+      .populate({
+        path: "image_ids",
+        select: "image_url isPrimary -_id",
+        match: { isActive: true, isDelete: false, isPrimary: true }, // Chỉ lấy ảnh isPrimary
+      })
+      .lean();
+
+    if (!topProduct || topProduct.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy sản phẩm bán chạy." });
+    }
+
+    res.status(200).json({ data: topProduct[0] });
+  } catch (error) {
+    console.error("Lỗi khi lấy sản phẩm bán chạy:", error);
+    res.status(500).json({ message: "Lỗi server khi lấy sản phẩm bán chạy." });
+  }
+};
 
 module.exports = {
   getAllProducts,
@@ -306,5 +330,6 @@ module.exports = {
   getProductImages,
   getProducts,
   createProduct,
-  getProductChatBot
+  getProductChatBot,
+  getTopSellingProduct
 };

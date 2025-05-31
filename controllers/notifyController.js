@@ -2,7 +2,6 @@ const Notify = require("../models/Notify");
 
 const getNotifications = async (req, res) => {
   try {
-    console.log("Notify: ", req.body);
     const notifications = await Notify.find({
       user_id: req.params.userId,
     }).sort({ createdAt: -1 });
@@ -40,4 +39,22 @@ const markAsRead = async (req, res) => {
   }
 };
 
-module.exports = { getNotifications, createNotification, markAsRead };
+const markAllAsRead = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    await Notify.updateMany(
+      { user_id: userId, isRead: false },
+      { isRead: true }
+    );
+    res.json({ message: "Đã đánh dấu tất cả là đã đọc" });
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+module.exports = {
+  getNotifications,
+  createNotification,
+  markAsRead,
+  markAllAsRead,
+};

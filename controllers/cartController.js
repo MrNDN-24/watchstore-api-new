@@ -1,5 +1,6 @@
 const Cart = require("../models/Cart"); // Đường dẫn có thể thay đổi tùy cấu trúc dự án
 const Product = require("../models/Product");
+const Activity = require("../models/Activity");
 const mongoose = require("mongoose");
 
 const getCartById = async (req, res) => {
@@ -99,6 +100,13 @@ const updateCart = async (req, res) => {
           },
         ],
       });
+      await Activity.create({
+        userId: user_id,
+        activityType: "add_to_cart",
+        targetId: product_id,
+        targetModel: "Product",
+        description: `Người dùng đã thêm sản phẩm ${product.name} vào giỏ hàng, số lượng ${quantity}`,
+      });
     } else {
       // Tìm sản phẩm trong giỏ hàng
       const productIndex = cart.products.findIndex(
@@ -119,6 +127,17 @@ const updateCart = async (req, res) => {
         cart.products.push({
           product_id,
           quantity,
+        });
+        await Activity.create({
+          userId: user_id,
+          activityType: "add_to_cart",
+          targetId: product_id,
+          targetModel: "Product",
+          description: `Người dùng đã thêm sản phẩm ${product.name} vào giỏ hàng, số lượng ${quantity}`,
+          targetDetails: {
+            name: product.name,
+            price: product.price,
+          },
         });
       }
     }
@@ -199,9 +218,21 @@ const removeProductFromCart = async (req, res) => {
       });
     }
 
+    const product = await Product.findById(product_id);
+
     // Xóa sản phẩm
     cart.products.splice(productIndex, 1);
-
+    await Activity.create({
+      userId: user_id,
+      activityType: "remove_from_cart",
+      targetId: product_id,
+      targetModel: "Product",
+      description: `Người dùng đã xóa sản phẩm ${product.name} khỏi giỏ hàng`,
+      targetDetails: {
+        name: product.name,
+        price: product.price,
+      },
+    });
     // Lấy thông tin tất cả sản phẩm còn lại trong giỏ hàng
     const productIds = cart.products.map((item) => item.product_id);
     const products = await mongoose.model("Product").find({
