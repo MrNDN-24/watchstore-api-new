@@ -24,7 +24,7 @@ const paymentRoutesAdmin = require("./routes/paymentRoutesAdmin");
 const statisticRoutesAdmin = require("./routes/statisticRoutesAdmin");
 const notifyRoutesAdmin = require("./routes/notifyRoutesAdmin");
 const blogRoutesAdmin = require("./routes/blogRoutesAdmin");
-const activityRoutesAdmin= require("./routes/activityRoutesAdmin");
+const activityRoutesAdmin = require("./routes/activityRoutesAdmin");
 
 //Client
 const userRoutes = require("./routes/userRoutes");
@@ -42,7 +42,7 @@ const brandRoutes = require("./routes/brandRoutes");
 const notifyRoutes = require("./routes/notifyRoutes");
 const blogRoutes = require("./routes/blogRoutes");
 const commentRoutes = require("./routes/commentRoutes");
-
+const favouriteRoutes = require("./routes/favouriteRoutes");
 
 //Message
 const conversationRoutes = require("./routes/conversationRoutes");
@@ -119,7 +119,7 @@ app.use("/api/brand", brandRoutes);
 app.use("/api/notifications", notifyRoutes);
 app.use("/api/blog", blogRoutes);
 app.use("/api/comment", commentRoutes);
-
+app.use("/api/favourite", favouriteRoutes);
 
 //Route message
 app.use("/api/conversations", conversationRoutes);

@@ -16,8 +16,6 @@ const createProduct = async (req, res) => {
 const getAllProducts = async (req, res) => {
   try {
     let { page, limit = 5 } = req.query;
-    console.log("Page", page);
-    console.log("Limit", limit);
 
     // Sử dụng `find` để lấy tất cả các sản phẩm, có thể bổ sung thêm các tùy chọn phân trang hoặc sắp xếp nếu cần
     const products = await Product.find()
@@ -73,7 +71,7 @@ const getProducts = async (req, res) => {
       sortBy = "sold",
       order = "desc",
     } = req.query;
-    console.log("Query: ", req.query);
+    // console.log("Query: ", req.query);
 
     // Chuyển đổi sang số
     page = parseInt(page);
@@ -331,5 +329,5 @@ module.exports = {
   getProducts,
   createProduct,
   getProductChatBot,
-  getTopSellingProduct
+  getTopSellingProduct,
 };
