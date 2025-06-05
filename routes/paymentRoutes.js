@@ -8,7 +8,7 @@ const {
   createQRCode,
   checkPayment,
   vnpayReturn,
- // vnpayRefund,
+  vnpayRefund,
 } = require("../controllers/vnPayController");
 const { verifyUser } = require("../middleware/authMiddleware");
 const router = express.Router();
@@ -18,7 +18,7 @@ router.post("/momo", momoPayment);
 router.post("/vnpay/create-qr", createQRCode);
 router.get("/vnpay/check-payment-vnpay", checkPayment);
 router.get("/vnpay/vnpay-return", vnpayReturn);
-//router.post("/vnpay/refund", vnpayRefund);
+router.post("/vnpay/refund", vnpayRefund);
 router.post("/callback", callBackPayment);
 
 module.exports = router;

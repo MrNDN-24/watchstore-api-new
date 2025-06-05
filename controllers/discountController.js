@@ -2,52 +2,71 @@ const Discount = require("../models/Discount");
 const User = require("../models/User");
 
 //1. Lấy danh sách mã giảm giá theo ranks khách hàng
+const RANK_ORDER = ["bronze", "silver", "gold", "platinum", "diamond"];
+
 const getDiscounts = async (req, res) => {
   try {
     const currentDate = new Date();
-    // 👉 Log kiểm tra xem req.user có tồn tại không
-    console.log("req.user:", req.user);
+    const { page = 1, limit = 3, type } = req.query;
+    const pageNumber = parseInt(page);
+    const pageSize = parseInt(limit);
 
-    // 👉 Nếu req.user không tồn tại thì trả về lỗi
     if (!req.user || !req.user._id) {
       return res
         .status(401)
         .json({ message: "Không xác định được người dùng." });
     }
 
-    // 👉 Lấy user hiện tại từ middleware auth (giả định req.user._id có sẵn)
     const user = await User.findById(req.user._id);
-    if (!user)
+    if (!user) {
       return res.status(404).json({ message: "Không tìm thấy người dùng." });
+    }
 
-    const userRank = user.rank || "bronze"; // Mặc định nếu chưa có rank
+    const userRank = user.rank || "bronze";
+    const RANK_ORDER = ["bronze", "silver", "gold", "platinum", "diamond"];
+    const rankIndex = RANK_ORDER.indexOf(userRank);
 
-    // Voucher đang diễn ra phù hợp với rank
-    const ongoingDiscounts = await Discount.find({
+    if (rankIndex === -1) {
+      return res.status(400).json({ message: "Rank người dùng không hợp lệ." });
+    }
+
+    const allowedRanks = RANK_ORDER.slice(0, rankIndex + 1);
+
+    let filter = {
       isActive: true,
       isDelete: false,
-      applicableRanks: userRank, // 🎯 Lọc theo rank
-      startDate: { $lte: currentDate },
-      expirationDate: { $gt: currentDate },
-    }).sort({ startDate: 1 });
+      applicableRanks: { $in: allowedRanks },
+    };
 
-    // Voucher sắp diễn ra phù hợp với rank
-    const upcomingDiscounts = await Discount.find({
-      isActive: true,
-      isDelete: false,
-      applicableRanks: userRank, // 🎯 Lọc theo rank
-      startDate: { $gt: currentDate },
-    }).sort({ startDate: 1 });
+    if (type === "ongoing") {
+      filter.startDate = { $lte: currentDate };
+      filter.expirationDate = { $gt: currentDate };
+    } else if (type === "upcoming") {
+      filter.startDate = { $gt: currentDate };
+    } else {
+      return res.status(400).json({ message: "Tham số type không hợp lệ." });
+    }
+
+    const totalCount = await Discount.countDocuments(filter);
+
+    const discounts = await Discount.find(filter)
+      .sort({ startDate: 1 })
+      .skip((pageNumber - 1) * pageSize)
+      .limit(pageSize);
+
+    const totalPages = Math.ceil(totalCount / pageSize);
 
     res.status(200).json({
-      ongoingDiscounts,
-      upcomingDiscounts,
+      discounts,
+      totalPages,
+      currentPage: pageNumber,
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Lỗi khi lấy danh sách mã giảm giá." });
   }
 };
+
 // const getDiscounts = async (req, res) => {
 //   try {
 //     const currentDate = new Date(); // Lấy ngày hiện tại
@@ -135,9 +154,6 @@ const getSuitableDiscount = async (req, res) => {
   try {
     const currentDate = new Date();
 
-    // 👉 Log kiểm tra xem req.user có tồn tại không
-    console.log("req.user:", req.user);
-
     if (!req.user || !req.user._id) {
       return res
         .status(401)
@@ -145,6 +161,7 @@ const getSuitableDiscount = async (req, res) => {
     }
 
     const user = await User.findById(req.user._id);
+    console.log("user:", user);
     if (!user)
       return res.status(404).json({ message: "Không tìm thấy người dùng." });
 
@@ -165,6 +182,8 @@ const getSuitableDiscount = async (req, res) => {
       expirationDate: { $gt: currentDate },
       usedBy: { $ne: user._id },
     });
+    console.log("allowedRanks:", allowedRanks);
+    console.log("discounts:", discounts);
 
     if (discounts.length === 0) {
       return res
