@@ -2,6 +2,7 @@ const Order = require("../models/Order"); // Đường dẫn tới model Order
 const Payment = require("../models/Payment");
 const Product = require("../models/Product");
 const Discount = require("../models/Discount");
+const User = require("../models/User");
 const Cart = require("../models/Cart");
 const Activity = require("../models/Activity");
 const User = require("../models/User");
@@ -28,6 +29,11 @@ const createOrder = async (req, res) => {
     // Kiểm tra dữ liệu bắt buộc (trừ payment_id và customAddress)
     if (!user_id || !products || !total_price) {
       return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const user = await User.findById(user_id);
+    if (!user) {
+      return res.status(404).json({ error: "Người dùng không tồn tại" });
     }
 
     // Kiểm tra danh sách sản phẩm
@@ -57,11 +63,12 @@ const createOrder = async (req, res) => {
     if (discountCode && discountCode.trim() !== "") {
       const discount = await Discount.findOne({ code: discountCode });
       // Kiểm tra xem mã giảm giá có hợp lệ với người dùng không
-      if (!discount || !discount.isValidForUser(user_id)) {
+      if (!discount || !discount.isValidForUser(user_id, user.rank)) {
         return res
           .status(400)
           .json({ error: "Mã giảm giá không hợp lệ với người dùng" });
       }
+
       // Thêm user_id vào trường usedBy của discount và lưu lại
       discount.usedBy.push(user_id);
       await discount.save();
@@ -233,6 +240,7 @@ const getUserOrder = async (req, res) => {
     // Lấy danh sách đơn hàng từ cơ sở dữ liệu
     const userOrders = await Order.find(filter)
       .populate("products.product_id")
+      .populate("payment_id")
       .sort({ createdAt: -1 });
 
     // Kiểm tra nếu không có đơn hàng nào
@@ -256,10 +264,10 @@ const getUserOrder = async (req, res) => {
 };
 
 const cancelOrder = async (req, res) => {
-  const orderId = req.params.id; // Giả sử orderId được truyền qua URL
+  const orderId = req.params.id;
   console.log("OrderId:", orderId);
+
   try {
-    // Tìm order cần hủy
     const order = await Order.findById(orderId).populate("products.product_id");
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
@@ -269,33 +277,49 @@ const cancelOrder = async (req, res) => {
       return res.status(400).json({ message: "Order already canceled" });
     }
 
-    // Đặt deliveryStatus của Order thành "Đã hủy"
+    const payment = await Payment.findById(order.payment_id);
+
+    // Nếu thanh toán qua VNPAY thì gọi hàm hoàn tiền
+    if (payment && payment.paymentMethod === "VNPAY") {
+      const refundData = {
+        orderId: payment.orderCode, // hoặc order._id nếu bạn dùng làm mã giao dịch
+        transDate: payment.transactionDate, // định dạng: YYYYMMDDHHmmss
+        amount: payment.amount * 100, // VNPAY cần giá trị nhân 100
+        transType: "02", // 02: hoàn toàn
+        user: "system", // hoặc tên admin hiện tại nếu có
+      };
+
+      const refundResult = await vnpayRefundInternal(refundData);
+
+      if (!refundResult.success) {
+        return res.status(500).json({
+          message: "Hoàn tiền thất bại",
+          detail: refundResult.message,
+        });
+      }
+
+      // Ghi log hoặc gán trạng thái đã hoàn tiền nếu cần
+      payment.isRefunded = true;
+    }
+
+    // Cập nhật trạng thái đơn hàng
     order.deliveryStatus = "Đã hủy";
     await order.save();
+    console.log("Order canceled:", order);
 
-    // Đặt isDelete của Payment liên quan thành true
-    const payment = await Payment.findById(order.payment_id);
+    // Đánh dấu payment đã bị xóa (nếu có)
     if (payment) {
       payment.isDelete = true;
       await payment.save();
     }
 
-    // Cập nhật lại stock và sold cho từng sản phẩm trong Order
+    // Cập nhật lại stock và sold
     for (const item of order.products) {
       const product = await Product.findById(item.product_id);
-      if (!product) {
-        console.warn(`Product with ID ${item.product_id} not found`);
-        continue;
-      }
+      if (!product) continue;
 
-      // Cập nhật stock và sold
       product.stock += item.quantity;
-      product.sold -= item.quantity;
-
-      // Đảm bảo giá trị sold không âm
-      if (product.sold < 0) {
-        product.sold = 0;
-      }
+      product.sold = Math.max(0, product.sold - item.quantity);
 
       await product.save();
     }
@@ -321,7 +345,7 @@ const cancelOrder = async (req, res) => {
     res.status(200).json({ message: "Order canceled successfully" });
   } catch (error) {
     console.error("Error canceling order:", error.message);
-    res
+    return res
       .status(500)
       .json({ message: "Internal Server Error", error: error.message });
   }
