@@ -59,11 +59,9 @@ const createDiscount = async (req, res) => {
     // Kiểm tra mã giảm giá có trùng trong các chương trình khác không
     const existingDiscount = await Discount.findOne({ code });
     if (existingDiscount) {
-      return res
-        .status(400)
-        .json({
-          message: "Mã giảm giá này đã tồn tại trong chương trình khác.",
-        });
+      return res.status(400).json({
+        message: "Mã giảm giá này đã tồn tại trong chương trình khác.",
+      });
     }
 
     const newDiscount = new Discount({
@@ -74,7 +72,7 @@ const createDiscount = async (req, res) => {
       discountValue,
       startDate,
       expirationDate,
-      applicableRanks: ranks
+      applicableRanks: ranks,
     });
 
     await newDiscount.save();
@@ -132,9 +130,9 @@ const getDiscounts = async (req, res) => {
 
       const totalDiscounts = await Discount.countDocuments(query);
       const discounts = await Discount.find(query)
+        .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(parseInt(limit))
-        .sort({ expirationDate: 1 });
+        .limit(parseInt(limit));
 
       res.status(200).json({
         success: true,
@@ -161,7 +159,6 @@ const getDiscounts = async (req, res) => {
     res.status(500).json({ error: "Failed to fetch discounts" });
   }
 };
-
 
 const updateDiscount = async (req, res) => {
   try {
@@ -198,21 +195,33 @@ const updateDiscount = async (req, res) => {
       try {
         ranks = JSON.parse(applicableRanks);
       } catch (err) {
-        return res.status(400).json({ message: "applicableRanks không hợp lệ" });
+        return res
+          .status(400)
+          .json({ message: "applicableRanks không hợp lệ" });
       }
     }
 
     // Tạo object cập nhật, chỉ cập nhật các trường không undefined
     const updatedFields = {
-      programName: programName !== undefined ? programName : existingDiscount.programName,
-      description: description !== undefined ? description : existingDiscount.description,
-      discountValue: discountValue !== undefined ? discountValue : existingDiscount.discountValue,
-      expirationDate: expirationDate !== undefined ? expirationDate : existingDiscount.expirationDate,
-      startDate: startDate !== undefined ? startDate : existingDiscount.startDate,
+      programName:
+        programName !== undefined ? programName : existingDiscount.programName,
+      description:
+        description !== undefined ? description : existingDiscount.description,
+      discountValue:
+        discountValue !== undefined
+          ? discountValue
+          : existingDiscount.discountValue,
+      expirationDate:
+        expirationDate !== undefined
+          ? expirationDate
+          : existingDiscount.expirationDate,
+      startDate:
+        startDate !== undefined ? startDate : existingDiscount.startDate,
       isActive: isActive !== undefined ? isActive : existingDiscount.isActive,
       isDelete: isDelete !== undefined ? isDelete : existingDiscount.isDelete,
       programImage: imageUrl,
-      applicableRanks: ranks !== undefined ? ranks : existingDiscount.applicableRanks,
+      applicableRanks:
+        ranks !== undefined ? ranks : existingDiscount.applicableRanks,
     };
 
     // Cập nhật
@@ -228,7 +237,9 @@ const updateDiscount = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in updateDiscount:", error);
-    res.status(500).json({ message: "Đã có lỗi xảy ra khi cập nhật mã giảm giá." });
+    res
+      .status(500)
+      .json({ message: "Đã có lỗi xảy ra khi cập nhật mã giảm giá." });
   }
 };
 

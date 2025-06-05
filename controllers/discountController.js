@@ -1,6 +1,6 @@
 const Discount = require("../models/Discount");
 const User = require("../models/User");
-
+const Activity = require("../models/Activity");
 //1. Lấy danh sách mã giảm giá theo ranks khách hàng
 const getDiscounts = async (req, res) => {
   try {
@@ -38,6 +38,13 @@ const getDiscounts = async (req, res) => {
       applicableRanks: userRank, // 🎯 Lọc theo rank
       startDate: { $gt: currentDate },
     }).sort({ startDate: 1 });
+
+    await Activity.create({
+      userId: req.user._id,
+      activityType: "view_discount_program",
+      targetModel: "Discount",
+      description: `Người dùng ${user.name} xem danh sách mã giảm giá cho hạng của họ (Hạng: ${userRank}) `,
+    });
 
     res.status(200).json({
       ongoingDiscounts,

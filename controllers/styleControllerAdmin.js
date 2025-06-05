@@ -1,14 +1,16 @@
-const Style = require('../models/Style');
-const Product = require('../models/Product');
+const Style = require("../models/Style");
+const Product = require("../models/Product");
 // Thêm mới style
 const addStyle = async (req, res) => {
   try {
     const { name, description } = req.body;
     const newStyle = new Style({ name, description });
     await newStyle.save();
-    return res.status(201).json({ message: 'Thêm style thành công', style: newStyle });
+    return res
+      .status(201)
+      .json({ message: "Thêm style thành công", style: newStyle });
   } catch (err) {
-    return res.status(500).json({ message: 'Lỗi khi thêm style', error: err });
+    return res.status(500).json({ message: "Lỗi khi thêm style", error: err });
   }
 };
 
@@ -18,18 +20,22 @@ const updateStyle = async (req, res) => {
     const { styleId } = req.params;
     const { name, description } = req.body;
     const updatedStyle = await Style.findByIdAndUpdate(
-      styleId, 
+      styleId,
       { name, description },
       { new: true } // Trả về đối tượng đã được cập nhật
     );
 
     if (!updatedStyle) {
-      return res.status(404).json({ message: 'Style không tìm thấy' });
+      return res.status(404).json({ message: "Style không tìm thấy" });
     }
 
-    return res.status(200).json({ message: 'Cập nhật style thành công', style: updatedStyle });
+    return res
+      .status(200)
+      .json({ message: "Cập nhật style thành công", style: updatedStyle });
   } catch (err) {
-    return res.status(500).json({ message: 'Lỗi khi cập nhật style', error: err });
+    return res
+      .status(500)
+      .json({ message: "Lỗi khi cập nhật style", error: err });
   }
 };
 
@@ -40,8 +46,8 @@ const updateStyle = async (req, res) => {
 //     const { isActive } = req.body;  // Trạng thái mới của isActive
 
 //     const updatedStyle = await Style.findByIdAndUpdate(
-//       styleId, 
-//       { isActive }, 
+//       styleId,
+//       { isActive },
 //       { new: true }
 //     );
 
@@ -78,7 +84,7 @@ const updateStyle = async (req, res) => {
 const updateStatus = async (req, res) => {
   try {
     const { styleId } = req.params; // lấy styleId trực tiếp từ tham số URL
-    const { isActive } = req.body;  // Trạng thái mới của isActive
+    const { isActive } = req.body; // Trạng thái mới của isActive
 
     const style = await Style.findById(styleId);
     if (!style) {
@@ -90,15 +96,14 @@ const updateStatus = async (req, res) => {
 
     // Nếu khóa style, khóa tất cả sản phẩm liên kết với style
     if (!isActive) {
-      await Product.updateMany(
-        { style_ids: styleId },
-        { isActive: false }
-      );
+      await Product.updateMany({ style_ids: styleId }, { isActive: false });
     }
 
     await style.save();
 
-    res.status(200).json({ message: "Cập nhật trạng thái style thành công", style });
+    res
+      .status(200)
+      .json({ message: "Cập nhật trạng thái style thành công", style });
   } catch (error) {
     console.error("Error in updateStyleActive:", error);
     res.status(500).json({ error: "Lỗi khi cập nhật trạng thái style" });
@@ -117,7 +122,10 @@ const deleteStyle = async (req, res) => {
     }
 
     // Kiểm tra nếu có sản phẩm liên kết với style thì không cho xóa
-    const linkedProducts = await Product.find({ style_ids: styleId, isDelete: false });
+    const linkedProducts = await Product.find({
+      style_ids: styleId,
+      isDelete: false,
+    });
     if (linkedProducts.length > 0) {
       return res.status(400).json({
         message: "Không thể xóa style vì có sản phẩm liên kết với style này",
@@ -190,9 +198,10 @@ const getStyles = async (req, res) => {
 
       const [styles, total] = await Promise.all([
         Style.find(query) // Fetch styles that match the query
+          .sort({ createdAt: -1 })
           .skip(skip)
           .limit(parseInt(limit)),
-        Style.countDocuments(query) // Count total styles that match the query
+        Style.countDocuments(query), // Count total styles that match the query
       ]);
 
       res.status(200).json({
@@ -216,10 +225,11 @@ const getStyles = async (req, res) => {
       });
     }
   } catch (err) {
-    return res.status(500).json({ message: 'Error fetching styles', error: err });
+    return res
+      .status(500)
+      .json({ message: "Error fetching styles", error: err });
   }
 };
-
 
 // Lấy style theo ID
 const getStyleById = async (req, res) => {
@@ -228,13 +238,20 @@ const getStyleById = async (req, res) => {
     const style = await Style.findById(styleId);
 
     if (!style) {
-      return res.status(404).json({ message: 'Style không tìm thấy' });
+      return res.status(404).json({ message: "Style không tìm thấy" });
     }
 
     return res.status(200).json({ style });
   } catch (err) {
-    return res.status(500).json({ message: 'Lỗi khi lấy style', error: err });
+    return res.status(500).json({ message: "Lỗi khi lấy style", error: err });
   }
 };
 
-module.exports = { addStyle, updateStyle, updateStatus, deleteStyle, getStyles, getStyleById };
+module.exports = {
+  addStyle,
+  updateStyle,
+  updateStatus,
+  deleteStyle,
+  getStyles,
+  getStyleById,
+};

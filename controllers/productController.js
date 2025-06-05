@@ -1,7 +1,7 @@
 // get
 const Product = require("../models/Product"); // Đường dẫn có thể thay đổi tùy cấu trúc dự án
 const ProductImage = require("../models/ProductImage");
-
+const Activity = require("..//models/Activity");
 const createProduct = async (req, res) => {
   try {
     const product = new Product(req.body);
@@ -241,6 +241,15 @@ const getProductById = async (req, res) => {
       });
     }
 
+    if (req.user && req.user.id) {
+      await Activity.create({
+        userId: req.user.id,
+        activityType: "view_product_details",
+        targetModel: "Product",
+        description: `Người dùng đã xem sản phẩm "${product.name}" (ID: ${product._id})`,
+      });
+    }
+
     // Trả về danh sách sản phẩm
     return res.status(200).json({
       product,
@@ -331,5 +340,5 @@ module.exports = {
   getProducts,
   createProduct,
   getProductChatBot,
-  getTopSellingProduct
+  getTopSellingProduct,
 };

@@ -84,7 +84,7 @@ exports.getAllBrands = async (req, res) => {
       const skip = (page - 1) * limit;
 
       const totalBrands = await Brand.countDocuments(query);
-      const brands = await Brand.find(query).skip(skip).limit(parseInt(limit));
+      const brands = await Brand.find(query).skip(skip).limit(parseInt(limit)).sort({ createdAt: -1 });
 
       res.status(200).json({
         success: true,

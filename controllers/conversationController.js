@@ -1,6 +1,7 @@
 const Conversation = require("../models/Conversation");
 const SupportQueue = require("../models/SupportQueue");
-
+const Activity = require("../models/Activity");
+const User = require("../models/User");
 const createConversation = async (req, res) => {
   try {
     const { customerId } = req.body;
@@ -14,8 +15,25 @@ const createConversation = async (req, res) => {
 
     // Thêm khách hàng vào hàng chờ
     await SupportQueue.create({ customerId });
-    const io = req.app.get("io"); 
+    const io = req.app.get("io");
     io.emit("supportQueueUpdated");
+
+    // Lấy tên khách hàng (nếu muốn hiển thị tên trong mô tả)
+    let customerName = "Khách hàng";
+    if (customerId) {
+      const user = await User.findById(customerId);
+      if (user) {
+        customerName = user.name || user.username || "Khách hàng";
+      }
+    }
+
+    // Tạo activity ghi nhận
+    await Activity.create({
+      userId: customerId,
+      activityType: "create_conversation",
+      targetModel: "Conversation",
+      description: `${customerName} đã tạo cuộc trò chuyện và được thêm vào hàng chờ hỗ trợ.`,
+    });
 
     // 👉 Log trước khi trả response
     console.log("🔄 Created conversation:", conversation);
@@ -88,7 +106,7 @@ const closeConversation = async (req, res) => {
 
     //Socket
     const io = req.app.get("io");
-     if (io) {
+    if (io) {
       const customerId = conversation.customerId.toString();
       io.to(customerId).emit("conversation:closed", {
         message: "Cuộc trò chuyện đã được đóng.",

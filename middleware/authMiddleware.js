@@ -107,3 +107,21 @@ exports.formatUserData = (req, res, next) => {
     });
   }
 };
+
+exports.optionalAuth = (req, res, next) => {
+  const authHeader = req.header('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Không có token, bỏ qua, cho tiếp tục
+    return next();
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded; // gán user info cho req nếu có token hợp lệ
+  } catch (err) {
+    // Token không hợp lệ thì cũng không dừng, bỏ qua luôn
+    console.log('Invalid token:', err.message);
+  }
+  next();
+};
+

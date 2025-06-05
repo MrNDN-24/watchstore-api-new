@@ -10,22 +10,19 @@ const activityLogSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      //Đối với product
       "view_product_details",
       "add_to_cart",
       "remove_from_cart",
-      // Đối với
-      "purchase",
-      "search",
-      "like_product",
       "view_discount_program",
-      "apply_discount_code",
       "view_blog",
-      "start_chat",
       "view_order_history",
-      "register",
+      "create_order",
+      "mark_all_notify_read",
+      "mark_notify_read",
       "login",
       "logout",
+      "cancel_order",
+      "create_conversation",
     ],
   },
   targetId: {
@@ -34,7 +31,7 @@ const activityLogSchema = new mongoose.Schema({
   },
   targetModel: {
     type: String,
-    enum: ["Product", "Cart", "Discount", "Blog", "Order", "User"],
+    enum: ["Product", "Cart", "Discount", "Blog", "Order", "User", "Notify","Conversation"],
     required: false,
   },
   description: {

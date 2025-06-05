@@ -1,5 +1,5 @@
 const Comment = require("../models/Comment");
-
+const axios = require("axios");
 // Lấy comment theo blogId
 const getCommentsByBlogId = async (req, res) => {
   try {
@@ -31,6 +31,22 @@ const createComment = async (req, res) => {
 
     if (!blogId || !content) {
       return res.status(400).json({ message: "blogId và content là bắt buộc" });
+    }
+    // Gọi API python kiểm tra toxic
+    const response = await axios.post(
+      "https://nhanne24-toxic-comment.hf.space/predict",
+      {
+        sentence: content,
+      }
+    );
+
+    console.log("Kết quả từ Flask:", response.data);
+    const isToxic = response.data.toxic;
+
+    if (isToxic === 1) {
+      return res.status(400).json({
+        message: "Bình luận chứa nội dung độc hại, không được phép đăng.",
+      });
     }
 
     const newComment = new Comment({ blogId, userId, content });

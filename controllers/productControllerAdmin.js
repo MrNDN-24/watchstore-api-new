@@ -111,6 +111,7 @@ exports.getAllProducts = async (req, res) => {
         path: "image_ids",
         match: { isPrimary: true },
       })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 

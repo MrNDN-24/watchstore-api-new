@@ -1,5 +1,5 @@
 const User = require("../models/User");
-const Address = require("../models/Address");  // Đảm bảo import model đúng cách
+const Address = require("../models/Address"); // Đảm bảo import model đúng cách
 const Order = require("../models/Order");
 
 // Xóa khách hàng (cập nhật isDelete thành true)
@@ -38,7 +38,9 @@ exports.deleteCustomer = async (req, res) => {
     // Tìm khách hàng
     const customer = await User.findOne({ _id: customerId, isDelete: false });
     if (!customer || customer.role !== "customer") {
-      return res.status(404).json({ message: "Khách hàng không tồn tại hoặc đã bị xóa" });
+      return res
+        .status(404)
+        .json({ message: "Khách hàng không tồn tại hoặc đã bị xóa" });
     }
 
     // Kiểm tra đơn hàng liên quan
@@ -57,30 +59,30 @@ exports.deleteCustomer = async (req, res) => {
     customer.isDelete = true;
     await customer.save();
 
-    res.status(200).json({ message: "Khách hàng đã bị xóa thành công", customer });
+    res
+      .status(200)
+      .json({ message: "Khách hàng đã bị xóa thành công", customer });
   } catch (error) {
     console.error(error); // In lỗi chi tiết để dễ debug
     res.status(500).json({ message: "Có lỗi xảy ra", error });
   }
 };
 
-
-
 // exports.updateCustomerStatus = async (req, res) => {
 //     try {
 //       const { customerId } = req.params;
 //       const { isActive } = req.body;
-  
+
 //       if (!customerId) {
 //         return res.status(400).json({ message: "ID khách hàng không hợp lệ" });
 //       }
-  
+
 //       // Kiểm tra khách hàng
 //       const customer = await User.findOne({ _id: customerId, isDelete: false });
 //       if (!customer || customer.role !== "customer") {
 //         return res.status(404).json({ message: "Khách hàng không tồn tại hoặc đã bị xóa" });
 //       }
-  
+
 //       // Cập nhật trạng thái
 //       customer.isActive = isActive !== undefined ? isActive : customer.isActive;
 //       await customer.save();
@@ -102,7 +104,9 @@ exports.updateCustomerStatus = async (req, res) => {
     // Kiểm tra khách hàng
     const customer = await User.findOne({ _id: customerId, isDelete: false });
     if (!customer || customer.role !== "customer") {
-      return res.status(404).json({ message: "Khách hàng không tồn tại hoặc đã bị xóa" });
+      return res
+        .status(404)
+        .json({ message: "Khách hàng không tồn tại hoặc đã bị xóa" });
     }
 
     // Kiểm tra đơn hàng liên quan
@@ -121,14 +125,14 @@ exports.updateCustomerStatus = async (req, res) => {
     customer.isActive = isActive !== undefined ? isActive : customer.isActive;
     await customer.save();
 
-    res.status(200).json({ message: "Trạng thái khách hàng đã được cập nhật", customer });
+    res
+      .status(200)
+      .json({ message: "Trạng thái khách hàng đã được cập nhật", customer });
   } catch (error) {
     console.error(error); // In lỗi chi tiết để dễ debug
     res.status(500).json({ message: "Có lỗi xảy ra", error });
   }
 };
-
-  
 
 // Lấy danh sách khách hàng không bị xóa
 // exports.getAllCustomers = async (req, res) => {
@@ -182,6 +186,7 @@ exports.getAllCustomers = async (req, res) => {
 
       const totalCustomers = await User.countDocuments(query);
       const customers = await User.find(query)
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
         .populate({
@@ -228,13 +233,18 @@ exports.getCustomerById = async (req, res) => {
     }
 
     // Tìm khách hàng theo ID và đảm bảo khách hàng chưa bị xóa
-    const customer = await User.findOne({ _id: customerId, isDelete: false }).populate({
+    const customer = await User.findOne({
+      _id: customerId,
+      isDelete: false,
+    }).populate({
       path: "address_id",
       model: "Address", // Đảm bảo populate đúng model Address
     });
 
     if (!customer || customer.role !== "customer") {
-      return res.status(404).json({ message: "Khách hàng không tồn tại hoặc đã bị xóa" });
+      return res
+        .status(404)
+        .json({ message: "Khách hàng không tồn tại hoặc đã bị xóa" });
     }
 
     // Trả về thông tin khách hàng

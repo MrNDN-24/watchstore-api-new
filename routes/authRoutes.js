@@ -9,9 +9,10 @@ const {
   resetPasswordAdmin,
   sendEmail,
   resetPassword,
-  facebookLogin
+  facebookLogin,
+  logout
 } = require("../controllers/authController");
-
+const { verifyUser } = require("../middleware/authMiddleware");
 const router = express.Router();
 
 router.post("/register", register);
@@ -23,4 +24,5 @@ router.post("/forgotpasswordAdmin", sendEmailAdmin );
 router.post("/reset_passwordAdmin/:id/:token", resetPasswordAdmin);
 router.post("/forgotpassword", sendEmail );
 router.post("/reset_password/:id/:token", resetPassword);
+router.post("/logout",verifyUser, logout);
 module.exports = router;

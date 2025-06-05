@@ -27,7 +27,10 @@ const getOrders = async (req, res) => {
     const totalPages = Math.ceil(totalOrders / limit); // Tính tổng số trang
 
     // Lấy đơn hàng theo phân trang
-    const orders = await Order.find(query).skip(skip).limit(limit);
+    const orders = await Order.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
 
     res.json({
       orders,
@@ -161,13 +164,12 @@ const updateOrderStatus = async (req, res) => {
       message: notifyMessage,
       type: "order",
     };
-    
+
     const newNotify = await Notify.create(notifyData);
-    
+
     // Gửi realtime qua Socket.IO với notify đã được MongoDB tạo đầy đủ fields
     const io = req.app.get("io");
     io.to(newNotify.user_id.toString()).emit("new-notification", newNotify);
-    
 
     res.json(order);
   } catch (error) {

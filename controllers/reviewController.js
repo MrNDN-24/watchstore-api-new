@@ -2,7 +2,7 @@ const Review = require("../models/Review"); // Import model Review
 const Order = require("../models/Order");
 const mongoose = require("mongoose");
 const Product = require("../models/Product");
-
+const axios = require("axios");
 //Hàm chỉnh sửa rating
 const updateRating = async (productId) => {
   try {
@@ -37,9 +37,6 @@ const updateRating = async (productId) => {
   }
 };
 
-
-
-
 // Hàm addReview
 const addReview = async (req, res) => {
   try {
@@ -52,7 +49,6 @@ const addReview = async (req, res) => {
     const order = await Order.findById(order_id);
     console.log("Order", order);
 
-    await order.markProductAsReviewed(product_id);
 
     // Kiểm tra xem rating có hợp lệ hay không (trong khoảng 1-5)
     if (rating < 1 || rating > 5) {
@@ -60,6 +56,19 @@ const addReview = async (req, res) => {
         .status(400)
         .json({ message: "Rating must be between 1 and 5" });
     }
+    // ✅ Gọi Flask API kiểm tra toxic
+    const response = await axios.post("https://nhanne24-toxic-comment.hf.space/predict", {
+      sentence: comment,
+    });
+
+    const isToxic = response.data.toxic;
+    if (isToxic === 1) {
+      return res.status(400).json({
+        message: "Nội dung đánh giá chứa ngôn từ độc hại. Vui lòng chỉnh sửa.",
+      });
+    }
+
+    await order.markProductAsReviewed(product_id);
 
     // Tạo một review mới
     const newReview = new Review({

@@ -3,7 +3,8 @@ const Payment = require("../models/Payment");
 const Product = require("../models/Product");
 const Discount = require("../models/Discount");
 const Cart = require("../models/Cart");
-
+const Activity = require("../models/Activity");
+const User = require("../models/User");
 const createOrder = async (req, res) => {
   try {
     // Lấy dữ liệu từ body của request
@@ -155,6 +156,22 @@ const createOrder = async (req, res) => {
     //   await cart.save();
     // }
 
+    let userName = "Người dùng";
+    if (user_id) {
+      const user = await User.findById(user_id);
+      if (user) {
+        userName = user.name || user.username || "Người dùng";
+      }
+    }
+    if (user_id && savedOrder._id) {
+      await Activity.create({
+        userId: user_id,
+        activityType: "create_order",
+        targetModel: "Order",
+        description: `${userName} đã tạo đơn hàng với ID: ${savedOrder._id}`,
+      });
+    }
+
     // Phản hồi thành công với thông tin đơn hàng
     return res.status(201).json({
       message: "Order created successfully",
@@ -223,6 +240,13 @@ const getUserOrder = async (req, res) => {
       return res.status(404).json({ message: "No orders found." });
     }
 
+    await Activity.create({
+      userId: user_id,
+      activityType: "view_order_history",
+      targetModel: "Order",
+      description: `Người dùng đã xem danh sách các đơn hàng trạng thái với trạng thái "${deliveryStatus}"!`,
+    });
+
     // Trả về danh sách đơn hàng
     return res.status(200).json({ orders: userOrders });
   } catch (error) {
@@ -275,6 +299,23 @@ const cancelOrder = async (req, res) => {
 
       await product.save();
     }
+
+    // Lấy tên người dùng để ghi activity
+    let userName = "Người dùng";
+    if (order.user_id) {
+      const user = await User.findById(order.user_id);
+      if (user) {
+        userName = user.name || user.username || "Người dùng";
+      }
+    }
+
+    // Tạo activity ghi nhận việc hủy đơn
+    await Activity.create({
+      userId: order.user_id,
+      activityType: "cancel_order",
+      targetModel: "Order",
+      description: `${userName} đã hủy đơn hàng với ID: ${orderId}`,
+    });
 
     // Phản hồi thành công
     res.status(200).json({ message: "Order canceled successfully" });

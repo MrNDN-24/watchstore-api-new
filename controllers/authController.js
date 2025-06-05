@@ -5,8 +5,8 @@ const authMiddleware = require("../middleware/authMiddleware"); // Import middle
 const bcrypt = require("bcrypt");
 var nodemailer = require("nodemailer");
 const client = new OAuth2Client(process.env.GG_CLIENT_ID);
-const axios = require('axios');
-
+const axios = require("axios");
+const Activity = require("../models/Activity");
 
 // Đăng ký người dùng
 
@@ -53,6 +53,14 @@ exports.login = async (req, res) => {
     const jwtToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
+    await Activity.create({
+      userId: user._id,
+      activityType: "login",
+      targetModel: "User",
+      description: `Người dùng ${
+        user.name || user.username
+      } đăng nhập vào cửa hàng.`,
+    });
     res.status(200).json({ message: "Đăng nhập thành công", token: jwtToken });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -97,6 +105,14 @@ exports.googleLogin = async (req, res) => {
     const jwtToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
+    await Activity.create({
+      userId: user._id,
+      activityType: "login",
+      targetModel: "User",
+      description: `Người dùng ${
+        user.name || user.username
+      } đăng nhập vào cửa hàng.`,
+    });
     res.status(200).json({ message: "Đăng nhập thành công", token: jwtToken });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -120,9 +136,9 @@ exports.facebookLogin = async (req, res) => {
     const { email, name, picture } = fbResponse.data;
 
     if (!email) {
-      return res
-        .status(400)
-        .json({ message: "Không lấy được email từ Facebook, vui lòng cấp quyền email" });
+      return res.status(400).json({
+        message: "Không lấy được email từ Facebook, vui lòng cấp quyền email",
+      });
     }
 
     let user = await User.findOne({ email });
@@ -147,6 +163,14 @@ exports.facebookLogin = async (req, res) => {
 
     const jwtToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1d",
+    });
+    await Activity.create({
+      userId: user._id,
+      activityType: "login",
+      targetModel: "User",
+      description: `Người dùng ${
+        user.name || user.username
+      } đăng nhập vào cửa hàng.`,
     });
     res.status(200).json({ message: "Đăng nhập thành công", token: jwtToken });
   } catch (error) {
@@ -199,11 +223,9 @@ exports.adminLogin = async (req, res) => {
   try {
     const user = await User.findOne({ username, role }); // Tìm theo username và role
     if (!user) {
-      return res
-        .status(401)
-        .json({
-          message: "Tài khoản không tồn tại hoặc vai trò không hợp lệ!",
-        });
+      return res.status(401).json({
+        message: "Tài khoản không tồn tại hoặc vai trò không hợp lệ!",
+      });
     }
 
     if (!(await user.comparePassword(password))) {
@@ -286,12 +308,10 @@ exports.sendEmailAdmin = async (req, res) => {
           .json({ message: "Gửi email thất bại", error: error.message });
       } else {
         // Chỉ gửi response thành công sau khi email đã được gửi thành công
-        return res
-          .status(200)
-          .json({
-            checksend: "Success",
-            message: "Link đổi mật khẩu đã được gửi đến email của bạn",
-          });
+        return res.status(200).json({
+          checksend: "Success",
+          message: "Link đổi mật khẩu đã được gửi đến email của bạn",
+        });
       }
     });
   } catch (error) {
@@ -442,5 +462,26 @@ exports.resetPassword = async (req, res) => {
       status: "Error",
       message: err.message,
     });
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const userName = req.user?.name || "Người dùng";
+
+    // Ghi nhận hoạt động đăng xuất
+    if (userId) {
+      await Activity.create({
+        userId,
+        activityType: "logout",
+        targetModel: "User",
+        description: `${userName} đã đăng xuất.`,
+      });
+    }
+
+    return res.status(200).json({ message: "Đăng xuất thành công" });
+  } catch (error) {
+    return res.status(500).json({ message: "Lỗi khi đăng xuất", error: error.message });
   }
 };

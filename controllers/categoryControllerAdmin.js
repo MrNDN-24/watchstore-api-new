@@ -1,14 +1,18 @@
-const Category = require('../models/Category');
-const Product = require('../models/Product');
+const Category = require("../models/Category");
+const Product = require("../models/Product");
 // Thêm mới danh mục
 const addCategory = async (req, res) => {
   try {
     const { name, description } = req.body;
     const newCategory = new Category({ name, description });
     await newCategory.save();
-    return res.status(201).json({ message: 'Thêm danh mục thành công', category: newCategory });
+    return res
+      .status(201)
+      .json({ message: "Thêm danh mục thành công", category: newCategory });
   } catch (err) {
-    return res.status(500).json({ message: 'Lỗi khi thêm danh mục', error: err });
+    return res
+      .status(500)
+      .json({ message: "Lỗi khi thêm danh mục", error: err });
   }
 };
 
@@ -18,18 +22,25 @@ const updateCategory = async (req, res) => {
     const { categoryId } = req.params;
     const { name, description } = req.body;
     const updatedCategory = await Category.findByIdAndUpdate(
-      categoryId, 
+      categoryId,
       { name, description },
       { new: true } // Trả về đối tượng đã được cập nhật
     );
 
     if (!updatedCategory) {
-      return res.status(404).json({ message: 'Danh mục không tìm thấy' });
+      return res.status(404).json({ message: "Danh mục không tìm thấy" });
     }
 
-    return res.status(200).json({ message: 'Cập nhật danh mục thành công', category: updatedCategory });
+    return res
+      .status(200)
+      .json({
+        message: "Cập nhật danh mục thành công",
+        category: updatedCategory,
+      });
   } catch (err) {
-    return res.status(500).json({ message: 'Lỗi khi cập nhật danh mục', error: err });
+    return res
+      .status(500)
+      .json({ message: "Lỗi khi cập nhật danh mục", error: err });
   }
 };
 
@@ -40,8 +51,8 @@ const updateCategory = async (req, res) => {
 //     const { isActive } = req.body;  // Trạng thái mới của isActive
 
 //     const updatedCategory = await Category.findByIdAndUpdate(
-//       categoryId, 
-//       { isActive }, 
+//       categoryId,
+//       { isActive },
 //       { new: true }
 //     );
 
@@ -78,18 +89,18 @@ const updateStatus = async (req, res) => {
     );
 
     return res.status(200).json({
-      message: `Danh mục và sản phẩm liên kết đã được ${isActive ? "mở" : "khóa"} thành công.`,
+      message: `Danh mục và sản phẩm liên kết đã được ${
+        isActive ? "mở" : "khóa"
+      } thành công.`,
       updatedCategory,
     });
   } catch (err) {
     console.error("Lỗi khi cập nhật trạng thái danh mục:", err);
-    return res.status(500).json({ message: "Lỗi khi cập nhật trạng thái danh mục.", error: err });
+    return res
+      .status(500)
+      .json({ message: "Lỗi khi cập nhật trạng thái danh mục.", error: err });
   }
 };
-
-
-
-
 
 // Xóa danh mục (soft delete)
 // const deleteCategory = async (req, res) => {
@@ -114,9 +125,14 @@ const deleteCategory = async (req, res) => {
     const { categoryId } = req.params;
 
     // Kiểm tra nếu có sản phẩm liên kết với category
-    const linkedProducts = await Product.find({ category_ids: categoryId, isDelete: false });
+    const linkedProducts = await Product.find({
+      category_ids: categoryId,
+      isDelete: false,
+    });
     if (linkedProducts.length > 0) {
-      return res.status(400).json({ message: "Không thể xóa danh mục vì có sản phẩm liên kết." });
+      return res
+        .status(400)
+        .json({ message: "Không thể xóa danh mục vì có sản phẩm liên kết." });
     }
 
     // Soft delete category
@@ -131,17 +147,18 @@ const deleteCategory = async (req, res) => {
     return res.status(200).json({ message: "Xóa danh mục thành công." });
   } catch (err) {
     console.error("Lỗi khi xóa danh mục:", err);
-    return res.status(500).json({ message: "Lỗi khi xóa danh mục.", error: err });
+    return res
+      .status(500)
+      .json({ message: "Lỗi khi xóa danh mục.", error: err });
   }
 };
-
 
 // API lấy danh mục với phân trang
 // const getCategories = async (req, res) => {
 //   try {
 //     const page = req.query.page ? parseInt(req.query.page) : null; // Nếu không có `page`, không phân trang
 //     const limit = req.query.limit ? parseInt(req.query.limit) : null; // Nếu không có `limit`, không phân trang
-    
+
 //     if (page && limit) {
 //       const skip = (page - 1) * limit;
 
@@ -190,7 +207,10 @@ const getCategories = async (req, res) => {
       const skip = (page - 1) * limit;
 
       const totalCategories = await Category.countDocuments(query);
-      const categories = await Category.find(query).skip(skip).limit(parseInt(limit));
+      const categories = await Category.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit));
 
       res.status(200).json({
         success: true,
@@ -225,13 +245,22 @@ const getCategoryById = async (req, res) => {
     const category = await Category.findById(categoryId);
 
     if (!category) {
-      return res.status(404).json({ message: 'Danh mục không tìm thấy' });
+      return res.status(404).json({ message: "Danh mục không tìm thấy" });
     }
 
     return res.status(200).json({ category });
   } catch (err) {
-    return res.status(500).json({ message: 'Lỗi khi lấy danh mục', error: err });
+    return res
+      .status(500)
+      .json({ message: "Lỗi khi lấy danh mục", error: err });
   }
 };
 
-module.exports = { addCategory, updateCategory, updateStatus, deleteCategory, getCategories, getCategoryById };
+module.exports = {
+  addCategory,
+  updateCategory,
+  updateStatus,
+  deleteCategory,
+  getCategories,
+  getCategoryById,
+};

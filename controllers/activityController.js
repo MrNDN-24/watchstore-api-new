@@ -3,12 +3,52 @@ const Activity = require("../models/Activity");
 // Lấy danh sách toàn bộ activity
 const getActivities = async (req, res) => {
   try {
-    // Lấy userId ưu tiên params trước, sau đó mới query
-    const userId = req.params.userId || req.query.userId;
-    const { page = 1, limit = 10 } = req.query;
-
+    const { page = 1, limit = 10, search } = req.query;
     const filter = { isDelete: false };
-    if (userId) filter.userId = userId;
+
+    // Map dịch ngược từ tiếng Việt về tiếng Anh (để backend hiểu)
+    const activityTypeMap = {
+      "Xem chi tiết sản phẩm": "view_product_details",
+      "Thêm vào giỏ hàng": "add_to_cart",
+      "Xóa khỏi giỏ hàng": "remove_from_cart",
+      "Xem chương trình giảm giá": "view_discount_program",
+      "Xem bài viết": "view_blog",
+      "Xem lịch sử đơn hàng": "view_order_history",
+      "Đăng nhập": "login",
+      "Đăng xuất": "logout",
+      "Đánh dấu đã đọc hết tất cả thông báo": "mark_all_notify_read",
+      "Đánh dấu đã đọc thông báo": "mark_notify_read",
+      "Tạo đơn hàng mua": "create_order",
+      "Hủy đơn hàng": "cancel_order",
+      "Tạo cuộc trò chuyện với nhân viên": "create_conversation",
+    };
+
+    const targetModelMap = {
+      "Sản phẩm": "Product",
+      "Giỏ hàng": "Cart",
+      "Khuyến mãi": "Discount",
+      "Bài viết": "Blog",
+      "Đơn hàng": "Order",
+      "Người dùng": "User",
+      "Thông báo": "Notify",
+    };
+
+    if (search) {
+      const activityTypeKeys = Object.entries(activityTypeMap)
+        .filter(([vi]) => vi.toLowerCase().includes(search.toLowerCase()))
+        .map(([, en]) => en);
+
+      const targetModelKeys = Object.entries(targetModelMap)
+        .filter(([vi]) => vi.toLowerCase().includes(search.toLowerCase()))
+        .map(([, en]) => en);
+
+      filter.$or = [
+        { description: { $regex: search, $options: "i" } },
+        { activityType: { $in: activityTypeKeys } },
+        { targetModel: { $in: targetModelKeys } },
+        { "userId.name": { $regex: search, $options: "i" } },
+      ];
+    }
 
     const skip = (page - 1) * limit;
 
@@ -34,6 +74,7 @@ const getActivities = async (req, res) => {
     res.status(500).json({ message: "Lỗi khi lấy danh sách activity." });
   }
 };
+
 
 // xem chi tiết activity theo Id
 const getActivityById = async (req, res) => {
