@@ -5,7 +5,7 @@ const Discount = require("../models/Discount");
 const User = require("../models/User");
 const Cart = require("../models/Cart");
 const Activity = require("../models/Activity");
-const User = require("../models/User");
+
 const createOrder = async (req, res) => {
   try {
     // Lấy dữ liệu từ body của request
