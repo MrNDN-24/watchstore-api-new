@@ -309,7 +309,7 @@ const cancelOrder = async (req, res) => {
 
     // Đánh dấu payment đã bị xóa (nếu có)
     if (payment) {
-      payment.isDelete = true;
+      payment.status = "Hoàn tiền";
       await payment.save();
     }
 

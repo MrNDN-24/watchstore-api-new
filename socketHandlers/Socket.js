@@ -20,4 +20,8 @@ module.exports = (socket, io) => {
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });
+  socket.on("newChatRequest", (data) => {
+    // Gửi thông báo đến tất cả nhân viên sales
+    io.to("sales_staff").emit("newChatRequest", data);
+  });
 };

@@ -37,26 +37,40 @@ const removeFromQueue = async (req, res) => {
   try {
     const { customerId } = req.params;
 
-    // Chỉ cho phép nếu là admin, salesperson, hoặc chính chủ
-    const isAdminOrSalesperson = ["admin", "salesperson"].includes(
-      req.user.role
-    );
+    const isAdminOrSalesperson = ["admin", "salesperson"].includes(req.user.role);
     const isOwner = req.user._id.toString() === customerId;
 
     if (!isAdminOrSalesperson && !isOwner) {
-      return res
-        .status(403)
-        .json({
-          message: "Bạn không có quyền xoá khách hàng này khỏi hàng chờ",
-        });
+      return res.status(403).json({
+        message: "Bạn không có quyền xoá khách hàng này khỏi hàng chờ",
+      });
     }
 
     const removed = await SupportQueue.findOneAndDelete({ customerId });
 
     if (!removed) {
-      return res
-        .status(404)
-        .json({ message: "Không tìm thấy khách trong hàng chờ" });
+      return res.status(404).json({ message: "Không tìm thấy khách trong hàng chờ" });
+    }
+
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("supportQueueUpdated"); // Gửi thông báo cập nhật hàng chờ
+    }
+
+    // Đóng cuộc trò chuyện nếu đang "waiting"
+    const conversation = await Conversation.findOneAndUpdate(
+      { customerId, status: "waiting" },
+      { status: "closed", isResolved: false },
+      { new: true }
+    );
+
+    if (conversation && io) {
+      const customerSocketId = customerId.toString();
+      console.log(`Emit conversation:closed:leftQueue to ${customerSocketId}`);
+      io.to(customerSocketId).emit("conversation:closed:leftQueue", {
+        message: "Cuộc trò chuyện đã bị đóng do bạn rời khỏi hàng chờ.",
+        conversation,
+      });
     }
 
     res.json({ message: "Đã xoá khách khỏi hàng chờ hỗ trợ" });

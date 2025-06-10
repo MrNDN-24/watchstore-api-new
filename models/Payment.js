@@ -4,7 +4,7 @@ const paymentSchema = new mongoose.Schema(
   {
     status: {
       type: String,
-      enum: ["Chưa thanh toán", "Đã thanh toán", "Chờ xác nhận"],
+      enum: ["Chưa thanh toán", "Đã thanh toán", "Chờ xác nhận", "Hoàn tiền"],
       default: "Chưa thanh toán",
     },
     method: {

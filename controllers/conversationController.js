@@ -15,8 +15,11 @@ const createConversation = async (req, res) => {
 
     // Thêm khách hàng vào hàng chờ
     await SupportQueue.create({ customerId });
+
+    // Lấy danh sách hàng chờ mới nhất
+    const currentQueue = await SupportQueue.find();
     const io = req.app.get("io");
-    io.emit("supportQueueUpdated");
+    io.emit("supportQueueUpdated", currentQueue);
 
     // Lấy tên khách hàng (nếu muốn hiển thị tên trong mô tả)
     let customerName = "Khách hàng";
@@ -91,6 +94,51 @@ const assignStaff = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+const removeFromQueue = async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const isAdminOrSalesperson = ["admin", "salesperson"].includes(req.user.role);
+    const isOwner = req.user._id.toString() === customerId;
+
+    if (!isAdminOrSalesperson && !isOwner) {
+      return res.status(403).json({
+        message: "Bạn không có quyền xoá khách hàng này khỏi hàng chờ",
+      });
+    }
+
+    const removed = await SupportQueue.findOneAndDelete({ customerId });
+
+    if (!removed) {
+      return res.status(404).json({ message: "Không tìm thấy khách trong hàng chờ" });
+    }
+
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("supportQueueUpdated"); // Gửi thông báo cập nhật hàng chờ
+    }
+
+    // Đóng cuộc trò chuyện nếu đang "waiting"
+    const conversation = await Conversation.findOneAndUpdate(
+      { customerId, status: "waiting" },
+      { status: "closed", isResolved: false },
+      { new: true }
+    );
+
+    if (conversation && io) {
+      const customerSocketId = customerId.toString();
+      console.log(`Emit conversation:closed:leftQueue to ${customerSocketId}`);
+      io.to(customerSocketId).emit("conversation:closed:leftQueue", {
+        message: "Cuộc trò chuyện đã bị đóng do bạn rời khỏi hàng chờ.",
+        conversation,
+      });
+    }
+
+    res.json({ message: "Đã xoá khách khỏi hàng chờ hỗ trợ" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 const closeConversation = async (req, res) => {
   try {
     const { conversationId, isResolved } = req.body;
@@ -101,14 +149,19 @@ const closeConversation = async (req, res) => {
       { new: true }
     );
 
-    if (!conversation)
+    if (!conversation) {
       return res.status(404).json({ message: "Conversation not found" });
+    }
 
-    //Socket
     const io = req.app.get("io");
+    if (!io) {
+      console.error("Socket.IO instance not found!");
+    }
+
     if (io) {
-      const customerId = conversation.customerId.toString();
-      io.to(customerId).emit("conversation:closed", {
+      const customerId = conversation.customerId._id.toString();
+      console.log(`Emit conversation:closed:manual to ${customerId}`);
+      io.to(customerId).emit("conversation:closed:manual", {
         message: "Cuộc trò chuyện đã được đóng.",
         conversation,
       });
