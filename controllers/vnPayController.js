@@ -11,6 +11,8 @@ const moment = require("moment");
 const request = require("request");
 const Order = require("../models/Order"); // thay đường dẫn nếu khác
 const Payment = require("../models/Payment"); // thay đường dẫn nếu khác
+const dotenv = require("dotenv");
+dotenv.config();
 
 const createQRCode = async (req, res) => {
   const { order_id, total_amount, payment_id } = req.body;
@@ -33,7 +35,9 @@ const createQRCode = async (req, res) => {
     vnp_TxnRef: order_id,
     vnp_OrderInfo: order_id,
     vnp_OrderType: ProductCode.Other,
-    vnp_ReturnUrl: "http://localhost:5000/api/payment/vnpay/vnpay-return",
+    vnp_ReturnUrl: `${process.env.BACKEND_URL}/payment/vnpay/vnpay-return`,
+
+    // vnp_ReturnUrl: "http://localhost:5000/api/payment/vnpay/vnpay-return",
     vnp_Locale: VnpLocale.VN,
     vnp_CreateDate: dateFormat(new Date()),
     vnp_ExpireDate: dateFormat(tomorrow),
@@ -129,7 +133,8 @@ const vnpayReturn = async (req, res) => {
       await order.save();
       await payment.save();
 
-      return res.redirect("http://localhost:3000"); // Hoặc URL trang chủ frontend của bạn
+      return res.redirect(`${process.env.REACT_CLIENT_URL}`);
+      // return res.redirect("http://localhost:3000"); // Hoặc URL trang chủ frontend của bạn
 
       // return res.status(200).json({
       //   success: true,

@@ -148,20 +148,19 @@ const createOrder = async (req, res) => {
     // Lưu đơn hàng vào cơ sở dữ liệu
     const savedOrder = await newOrder.save();
 
-    // const cart = await Cart.findOne({ user_id: user_id });
-
-    // if (cart) {
-    //   // Xóa các sản phẩm đã mua trong đơn hàng khỏi giỏ hàng
-    //   for (const item of products) {
-    //     const productId = item.product_id;
-    //     cart.products = cart.products.filter(
-    //       (product) => product.product_id.toString() !== productId.toString()
-    //     );
-    //   }
-
-    //   // Lưu lại giỏ hàng sau khi xóa các sản phẩm
-    //   await cart.save();
-    // }
+    // Xóa các sản phẩm trong đơn hàng khỏi giỏ hàng
+    const cart = await Cart.findOne({ user_id });
+    if (cart) {
+      // Lọc bỏ các sản phẩm có trong đơn hàng
+      for (const item of products) {
+        const productId = item.product_id;
+        cart.products = cart.products.filter(
+          (product) => product.product_id.toString() !== productId.toString()
+        );
+      }
+      // Lưu lại giỏ hàng sau khi cập nhật
+      await cart.save();
+    }
 
     let userName = "Người dùng";
     if (user_id) {
