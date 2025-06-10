@@ -2,6 +2,7 @@
 const Product = require("../models/Product"); // Đường dẫn có thể thay đổi tùy cấu trúc dự án
 const ProductImage = require("../models/ProductImage");
 const Activity = require("..//models/Activity");
+const Order = require("../models/Order")
 const createProduct = async (req, res) => {
   try {
     const product = new Product(req.body);
@@ -308,29 +309,105 @@ const getProductChatBot = async (req, res) => {
 
 const getTopSellingProduct = async (req, res) => {
   try {
-    const topProduct = await Product.find({ isActive: true, isDelete: false })
-      .sort({ sold: -1 })
-      .limit(1)
-      .populate({
-        path: "image_ids",
-        select: "image_url isPrimary -_id",
-        match: { isActive: true, isDelete: false, isPrimary: true }, // Chỉ lấy ảnh isPrimary
-      })
-      .lean();
+    // Lấy tất cả các đơn hàng đã giao
+    console.log("Fetching orders with deliveryStatus: 'Đã giao'...");
+    const orders = await Order.find({ deliveryStatus: "Đã giao" })
+      .populate("products.product_id", "productCode name price discount_price") // Không cần populate image_ids ở đây
+      .populate("discountCode");
+    console.log("Orders:", orders.length, "records found");
+    console.log("Sample Order:", orders[0] || "No orders found");
 
-    if (!topProduct || topProduct.length === 0) {
+    // Tạo một đối tượng để lưu dữ liệu của các sản phẩm
+    const productDataMap = {};
+    console.log("Initializing productDataMap...");
+
+    // Duyệt qua từng đơn hàng để tổng hợp dữ liệu
+    orders.forEach((order) => {
+      const discountValue = order.discountCode ? order.discountCode.discountValue : 0;
+      console.log(`Order ID: ${order._id}, Discount Value: ${discountValue}`);
+      const totalDiscountPerProduct = discountValue / order.products.length;
+      console.log(`Total Discount Per Product: ${totalDiscountPerProduct}`);
+
+      order.products.forEach((item) => {
+        const product = item.product_id;
+        const productId = product._id.toString();
+        const productCode = product.productCode;
+        const productName = product.name;
+        const productPrice = product.discount_price || product.price;
+
+        console.log(`Processing Product ID: ${productId}, Name: ${productName}, Price: ${productPrice}, Quantity: ${item.quantity}`);
+
+        // Tính doanh thu của sản phẩm trong đơn hàng này
+        const revenue = item.quantity * productPrice;
+        console.log(`Revenue for Product ${productId}: ${revenue}`);
+
+        if (!productDataMap[productId]) {
+          productDataMap[productId] = {
+            productCode,
+            name: productName,
+            sold: 0,
+            totalRevenue: 0,
+            price: productPrice,
+            productId, // Lưu productId để truy vấn ảnh sau
+          };
+          console.log(`Created productDataMap entry for ${productId}:`, productDataMap[productId]);
+        }
+
+        // Cộng dồn doanh thu và số lượng đã bán
+        productDataMap[productId].sold += item.quantity;
+        productDataMap[productId].totalRevenue += revenue;
+        console.log(`Updated productDataMap[${productId}]:`, productDataMap[productId]);
+      });
+    });
+
+    // Chuyển đổi đối tượng thành mảng và lấy sản phẩm có doanh thu cao nhất
+    console.log("Converting productDataMap to array and sorting...");
+    const topProducts = Object.values(productDataMap)
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 1);
+    console.log("Top Products:", topProducts);
+
+    if (!topProducts || topProducts.length === 0) {
+      console.log("No top products found");
       return res
         .status(404)
         .json({ message: "Không tìm thấy sản phẩm bán chạy." });
     }
 
-    res.status(200).json({ data: topProduct[0] });
+    // Lấy thông tin ảnh chính từ Product
+    console.log("Fetching image for top product...");
+    const topProductData = topProducts[0];
+    const topProductDetails = await Product.findById(topProductData.productId)
+      .select("image_ids")
+      .populate({
+        path: "image_ids",
+        select: "image_url isPrimary -_id",
+        match: { isActive: true, isDelete: false, isPrimary: true },
+      })
+      .lean();
+    console.log("Top Product Details:", topProductDetails);
+
+    const image = topProductDetails?.image_ids?.length > 0 ? topProductDetails.image_ids[0].image_url : null;
+    console.log("Image URL:", image);
+
+    // Chuẩn bị dữ liệu trả về
+    const topProduct = {
+      _id: topProductData.productId,
+      productCode: topProductData.productCode,
+      name: topProductData.name,
+      sold: topProductData.sold,
+      totalRevenue: topProductData.totalRevenue,
+      image_url: image,
+      price: topProductData.price,
+    };
+    console.log("Final Top Product:", topProduct);
+
+    res.status(200).json({ data: topProduct });
   } catch (error) {
-    console.error("Lỗi khi lấy sản phẩm bán chạy:", error);
-    res.status(500).json({ message: "Lỗi server khi lấy sản phẩm bán chạy." });
+    console.error("Lỗi khi lấy sản phẩm bán chạy:", error.message, error.stack);
+    res.status(500).json({ message: "Lỗi server khi lấy sản phẩm bán chạy.", error: error.message });
   }
 };
-
 module.exports = {
   getAllProducts,
   getProductById,
