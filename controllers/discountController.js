@@ -112,6 +112,8 @@ const validateDiscountForUser = async (req, res) => {
     const { code } = req.params;
     const userId = req.user.id;
 
+    console.log("User ID:", userId);
+    console.log("Discount code:", code);
     // Lấy thông tin người dùng để biết rank
     const user = await User.findById(userId);
     if (!user) {
@@ -121,6 +123,7 @@ const validateDiscountForUser = async (req, res) => {
     }
 
     const userRank = user.rank || "bronze";
+    console.log("User rank:", userRank);
 
     const discount = await Discount.findOne({ code, isDelete: false });
     if (!discount) {

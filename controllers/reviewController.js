@@ -49,7 +49,6 @@ const addReview = async (req, res) => {
     const order = await Order.findById(order_id);
     console.log("Order", order);
 
-
     // Kiểm tra xem rating có hợp lệ hay không (trong khoảng 1-5)
     if (rating < 1 || rating > 5) {
       return res
@@ -57,9 +56,12 @@ const addReview = async (req, res) => {
         .json({ message: "Rating must be between 1 and 5" });
     }
     // ✅ Gọi Flask API kiểm tra toxic
-    const response = await axios.post("https://nhanne24-toxic-comment.hf.space/predict", {
-      sentence: comment,
-    });
+    const response = await axios.post(
+      "https://nhanne24-toxic-comment.hf.space/predict",
+      {
+        sentence: comment,
+      }
+    );
 
     const isToxic = response.data.toxic;
     if (isToxic === 1) {
@@ -98,6 +100,7 @@ const getReviewById = async (req, res) => {
   try {
     // Lấy ID từ request parameters
     const id = req.params.id;
+    console.log("Review id", id);
     let { page = 1, limit = 5, sortBy = "rating", order = "desc" } = req.query;
 
     // Kiểm tra ID có hợp lệ hay không
@@ -141,7 +144,7 @@ const getReviewsProduct = async (req, res) => {
   try {
     // Lấy ID từ request parameters
     const id = req.params.id;
-    // console.log("Product id", id);
+    console.log("Product id", id);
 
     // Kiểm tra ID có hợp lệ hay không
     if (!mongoose.Types.ObjectId.isValid(id)) {
