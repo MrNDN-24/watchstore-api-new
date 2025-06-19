@@ -41,8 +41,8 @@ const createQRCode = async (req, res) => {
     vnp_Locale: VnpLocale.VN,
     vnp_CreateDate: dateFormat(new Date()),
     vnp_ExpireDate: dateFormat(tomorrow),
-    vnp_BankCode: "VNBANK", // Thêm dòng này
-    vnp_CurrCode: "VND", // Thêm dòng này nếu chưa có
+    // vnp_BankCode: "VNBANK", 
+    // vnp_CurrCode: "VND", 
   });
 
   return res.status(200).json({

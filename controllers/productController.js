@@ -2,7 +2,7 @@
 const Product = require("../models/Product"); // Đường dẫn có thể thay đổi tùy cấu trúc dự án
 const ProductImage = require("../models/ProductImage");
 const Activity = require("..//models/Activity");
-const Order = require("../models/Order")
+const Order = require("../models/Order");
 const createProduct = async (req, res) => {
   try {
     const product = new Product(req.body);
@@ -309,48 +309,81 @@ const getProductChatBot = async (req, res) => {
 
 const getTopSellingProduct = async (req, res) => {
   try {
-    // Lấy tất cả các đơn hàng đã giao
-    console.log("Fetching orders with deliveryStatus: 'Đã giao'...");
-    const orders = await Order.find({ deliveryStatus: "Đã giao" })
-      .populate("products.product_id", "productCode name price discount_price isActive isDelete stock")
-      .populate("discountCode");
-    console.log("Orders:", orders.length, "records found");
-    console.log("Sample Order:", orders[0] || "No orders found");
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0-indexed (0 = Jan)
 
-    // Tạo một đối tượng để lưu dữ liệu của các sản phẩm
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(
+      currentYear,
+      currentMonth + 1,
+      0,
+      23,
+      59,
+      59,
+      999
+    );
+
+    // Hàm lấy đơn hàng theo tháng hoặc tất cả
+    const getOrders = async (filterByMonth) => {
+      const filter = { deliveryStatus: "Đã giao" };
+      if (filterByMonth) {
+        filter.createdAt = { $gte: monthStart, $lte: monthEnd };
+      }
+      return await Order.find(filter)
+        .populate(
+          "products.product_id",
+          "productCode name price discount_price isActive isDelete stock"
+        )
+        .populate("discountCode");
+    };
+
+    // Tìm đơn hàng trong tháng hiện tại
+    console.log("Tìm đơn hàng trong tháng hiện tại...");
+    let orders = await getOrders(true);
+
+    if (orders.length === 0) {
+      console.log(
+        "Không có đơn hàng trong tháng. Tìm tất cả đơn hàng đã giao..."
+      );
+      orders = await getOrders(false);
+    }
+
+    if (!orders || orders.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy đơn hàng đã giao." });
+    }
+
     const productDataMap = {};
-    console.log("Initializing productDataMap...");
 
-    // Duyệt qua từng đơn hàng để tổng hợp dữ liệu
     orders.forEach((order) => {
-      const discountValue = order.discountCode ? order.discountCode.discountValue : 0;
+      const discountValue = order.discountCode
+        ? order.discountCode.discountValue
+        : 0;
       const totalDiscountPerProduct = discountValue / order.products.length;
 
       order.products.forEach((item) => {
         const product = item.product_id;
-
-        // Bỏ qua sản phẩm không hợp lệ
-        if (!product || !product.isActive || product.isDelete || product.stock <= 0) {
-          console.log(`Skipping product ${product?._id} due to inactive/delete/stock`);
+        if (
+          !product ||
+          !product.isActive ||
+          product.isDelete ||
+          product.stock <= 0
+        )
           return;
-        }
 
         const productId = product._id.toString();
-        const productCode = product.productCode;
-        const productName = product.name;
-        const productPrice = product.price;
-        const productDiscountPrice = product.discount_price;
-
-        const revenue = item.quantity * productPrice;
+        const revenue = item.quantity * product.price;
 
         if (!productDataMap[productId]) {
           productDataMap[productId] = {
-            productCode,
-            name: productName,
+            productCode: product.productCode,
+            name: product.name,
             sold: 0,
             totalRevenue: 0,
-            price: productPrice,
-            discountprice: productDiscountPrice,
+            price: product.price,
+            discountprice: product.discount_price,
             productId,
           };
         }
@@ -360,11 +393,9 @@ const getTopSellingProduct = async (req, res) => {
       });
     });
 
-    // Chuyển đổi productDataMap thành mảng và sắp xếp
-    console.log("Filtering valid product IDs...");
-    const filteredProductIds = Object.values(productDataMap).map((p) => p.productId);
-
-    // Lấy danh sách sản phẩm hợp lệ (isActive, not deleted, stock > 0)
+    const filteredProductIds = Object.values(productDataMap).map(
+      (p) => p.productId
+    );
     const validProducts = await Product.find({
       _id: { $in: filteredProductIds },
       isActive: true,
@@ -372,18 +403,21 @@ const getTopSellingProduct = async (req, res) => {
       stock: { $gt: 0 },
     }).select("_id");
 
-    const validProductIdSet = new Set(validProducts.map((p) => p._id.toString()));
+    const validProductIdSet = new Set(
+      validProducts.map((p) => p._id.toString())
+    );
 
     const topProducts = Object.values(productDataMap)
       .filter((p) => validProductIdSet.has(p.productId))
-      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .sort((a, b) => b.sold - a.sold) // Sắp theo số lượng bán
       .slice(0, 1);
 
     if (!topProducts || topProducts.length === 0) {
-      return res.status(404).json({ message: "Không tìm thấy sản phẩm bán chạy." });
+      return res
+        .status(404)
+        .json({ message: "Không tìm thấy sản phẩm bán chạy." });
     }
 
-    // Lấy thông tin ảnh chính của sản phẩm top
     const topProductData = topProducts[0];
     const topProductDetails = await Product.findById(topProductData.productId)
       .select("image_ids")
@@ -395,7 +429,9 @@ const getTopSellingProduct = async (req, res) => {
       .lean();
 
     const image =
-      topProductDetails?.image_ids?.length > 0 ? topProductDetails.image_ids[0].image_url : null;
+      topProductDetails?.image_ids?.length > 0
+        ? topProductDetails.image_ids[0].image_url
+        : null;
 
     const topProduct = {
       _id: topProductData.productId,
@@ -411,9 +447,10 @@ const getTopSellingProduct = async (req, res) => {
     res.status(200).json({ data: topProduct });
   } catch (error) {
     console.error("Lỗi khi lấy sản phẩm bán chạy:", error.message, error.stack);
-    res
-      .status(500)
-      .json({ message: "Lỗi server khi lấy sản phẩm bán chạy.", error: error.message });
+    res.status(500).json({
+      message: "Lỗi server khi lấy sản phẩm bán chạy.",
+      error: error.message,
+    });
   }
 };
 

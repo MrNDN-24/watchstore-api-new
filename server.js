@@ -126,6 +126,17 @@ app.use("/api/conversations", conversationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/support-queue", supportQueueRoutes);
 
+//Xử lý xóa đơn hàng chưa thanh toán quá 5 phút
+// Import cron job
+const cron = require("node-cron");
+const { cancelUnpaidOrders } = require("./cron/autoCancelUnpaidOrders");
+
+// Chạy mỗi phút
+cron.schedule("*/1 * * * *", async () => {
+  console.log("Cron: Kiểm tra đơn chưa thanh toán...");
+  await cancelUnpaidOrders();
+});
+
 // Khởi động server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

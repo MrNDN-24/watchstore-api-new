@@ -26,7 +26,7 @@ const productSchema = new mongoose.Schema(
 
     //Inventory
     sold: { type: Number, default: 0 },
-    inventoryDate: { type: Date, default: Date.now }, // Ngày Nhập Kho
+    inventoryDate: { type: Date, default: Date.now }, 
     isActive: { type: Boolean, default: true },
     isDelete: { type: Boolean, default: false },
   },

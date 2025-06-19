@@ -5,26 +5,51 @@ const User = require("../models/User"); // hoặc đường dẫn đúng tới f
 
 // Lọc đơn hàng theo trạng thái và thời gian
 const getOrders = async (req, res) => {
-  const { status, dateFilter, page = 1, limit = 4 } = req.query; // Lấy các tham số từ query, mặc định page = 1 và limit = 10
+  const { status, dateFilter, year, month, page = 1, limit = 4 } = req.query;
 
   try {
     let query = {
       isDelete: false,
-      deliveryStatus: status,
     };
 
-    // Lọc theo ngày hôm nay nếu có tham số dateFilter
+    if (status && status !== 'all') {
+      query.deliveryStatus = status;
+    }
+
+    // Xử lý các trường hợp lọc thời gian
     if (dateFilter === "today") {
       const today = new Date();
-      const startOfDay = new Date(today.setHours(0, 0, 0, 0)); // Bắt đầu ngày hôm nay
-      const endOfDay = new Date(today.setHours(23, 59, 59, 999)); // Kết thúc ngày hôm nay
-      query.createdAt = { $gte: startOfDay, $lt: endOfDay }; // Lọc đơn hàng trong ngày hôm nay
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+      
+      // Nếu có cả năm/tháng thì kết hợp
+      if (year && month) {
+        const selectedDate = new Date(year, month - 1, today.getDate());
+        query.createdAt = { 
+          $gte: new Date(selectedDate.setHours(0, 0, 0, 0)),
+          $lt: new Date(selectedDate.setHours(23, 59, 59, 999))
+        };
+      } else {
+        query.createdAt = { $gte: startOfDay, $lt: endOfDay };
+      }
+    } 
+    // Lọc theo năm và tháng (không phải hôm nay)
+    else if (year && month) {
+      const startDate = new Date(year, month - 1, 1);
+      const endDate = new Date(year, month, 1);
+      query.createdAt = { $gte: startDate, $lt: endDate };
+    }
+    // Chỉ lọc theo năm
+    else if (year) {
+      const startDate = new Date(year, 0, 1);
+      const endDate = new Date(parseInt(year) + 1, 0, 1);
+      query.createdAt = { $gte: startDate, $lt: endDate };
     }
 
     // Tính toán phân trang
     const skip = (page - 1) * limit;
-    const totalOrders = await Order.countDocuments(query); // Đếm tổng số đơn hàng
-    const totalPages = Math.ceil(totalOrders / limit); // Tính tổng số trang
+    const totalOrders = await Order.countDocuments(query);
+    const totalPages = Math.ceil(totalOrders / limit);
 
     // Lấy đơn hàng theo phân trang
     const orders = await Order.find(query)
@@ -189,6 +214,7 @@ const getOrderDetails = async (req, res) => {
       .populate("payment_id") // Populate payment details
       .populate("address_id"); // Populate address if needed
 
+      console.log("Payment method:", order.payment_id.method);
     if (!order) {
       return res.status(404).json({ message: "Đơn hàng không tìm thấy" });
     }

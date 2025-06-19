@@ -308,7 +308,11 @@ const cancelOrder = async (req, res) => {
 
     // Đánh dấu payment đã bị xóa (nếu có)
     if (payment) {
-      payment.status = "Hoàn tiền";
+      if (payment.method === "VNPAY") {
+        payment.status = "Hoàn tiền";
+      } else {
+        payment.status = "Đã hủy";
+      }
       await payment.save();
     }
 

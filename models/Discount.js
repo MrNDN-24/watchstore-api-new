@@ -52,7 +52,7 @@ const discountSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-});
+},{ timestamps: true });
 
 const rankPriority = {
   bronze: 1,

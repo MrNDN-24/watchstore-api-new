@@ -116,21 +116,41 @@ const createDiscount = async (req, res) => {
 // };
 const getDiscounts = async (req, res) => {
   try {
-    const { page, limit, search } = req.query;
+    const { page, limit, search, filter } = req.query;
 
     const query = { isDelete: false };
+    
+    // Thêm điều kiện lọc theo trạng thái
+    const currentDate = new Date();
+    if (filter) {
+      switch (filter) {
+        case 'active':
+          query.startDate = { $lte: currentDate };
+          query.expirationDate = { $gte: currentDate };
+          break;
+        case 'upcoming':
+          query.startDate = { $gt: currentDate };
+          break;
+        case 'expired':
+          query.expirationDate = { $lt: currentDate };
+          break;
+      }
+    }
+    
     if (search) {
       query.$or = [
-        { code: { $regex: search, $options: "i" } }, // Tìm kiếm theo code
-        { description: { $regex: search, $options: "i" } }, // Tìm kiếm theo description
+        { code: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { programName: { $regex: search, $options: "i" } },
       ];
     }
+    
+    // Phần còn lại giữ nguyên
     if (page && limit) {
       const skip = (page - 1) * limit;
-
       const totalDiscounts = await Discount.countDocuments(query);
       const discounts = await Discount.find(query)
-        .sort({ createdAt: -1 })
+        .sort({ startDate: -1 })
         .skip(skip)
         .limit(parseInt(limit));
 
@@ -144,7 +164,6 @@ const getDiscounts = async (req, res) => {
       });
     } else {
       const discounts = await Discount.find(query).sort({ expirationDate: 1 });
-
       res.status(200).json({
         success: true,
         total: discounts.length,

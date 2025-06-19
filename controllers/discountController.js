@@ -36,6 +36,7 @@ const getDiscounts = async (req, res) => {
       isActive: true,
       isDelete: false,
       applicableRanks: { $in: allowedRanks },
+      usedBy: { $nin: [req.user._id] },
     };
 
     if (type === "ongoing") {
